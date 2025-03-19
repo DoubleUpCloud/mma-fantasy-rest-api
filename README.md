@@ -1,2 +1,5 @@
-# mma-fantasy-rest-api
-Rest Api for MMA Fantasy app.
+# MMA Fanatsy Rest API
+
+## Node version: v20.11.0
+
+
