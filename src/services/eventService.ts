@@ -1,10 +1,103 @@
 import { supabase } from '../lib/supabase';
-import { Event, Bout, ScrapedEventData } from '../models';
+import { Event, Bout, ScrapedEventData, FighterRecord } from '../models';
+
+/**
+ * Parse a fighter record string (e.g., "10-2-1") into wins, losses, and draws
+ * @param record The record string in format "wins-losses-draws"
+ * @returns Object with wins, losses, and draws as numbers
+ */
+const parseRecord = (record: string): { wins: number; losses: number; draws: number } => {
+  // Default values
+  const result = { wins: 0, losses: 0, draws: 0 };
+
+  // Handle empty or invalid records
+  if (!record) return result;
+
+  // Parse the record string
+  const parts = record.split('-');
+
+  if (parts.length >= 1) result.wins = parseInt(parts[0]) || 0;
+  if (parts.length >= 2) result.losses = parseInt(parts[1]) || 0;
+  if (parts.length >= 3) result.draws = parseInt(parts[2]) || 0;
+
+  return result;
+};
 
 /**
  * Service for handling MMA event operations
  */
 export const eventService = {
+  /**
+   * Create or update a fighter in the database
+   * @param name The fighter's name
+   * @param record The fighter's record string (e.g., "10-2-1")
+   * @returns The fighter record object with ID
+   */
+  async createOrUpdateFighter(name: string, record: string): Promise<FighterRecord | null> {
+    try {
+      // First, check if the fighter already exists
+      const { data: existingFighter, error: searchError } = await supabase
+        .from('fighters')
+        .select('*')
+        .eq('name', name)
+        .maybeSingle();
+
+      if (searchError) {
+        console.error('Error searching for fighter:', searchError);
+        return null;
+      }
+
+      const recordData = parseRecord(record);
+      const timestamp = new Date().toISOString();
+
+      if (existingFighter) {
+        // Update the existing fighter
+        const { data: updatedFighter, error: updateError } = await supabase
+          .from('fighters')
+          .update({
+            wins: recordData.wins,
+            losses: recordData.losses,
+            draws: recordData.draws,
+            updated_at: timestamp
+          })
+          .eq('id', existingFighter.id)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error('Error updating fighter:', updateError);
+          return existingFighter; // Return the existing fighter even if update fails
+        }
+
+        return updatedFighter;
+      } else {
+        // Create a new fighter
+        const { data: newFighter, error: insertError } = await supabase
+          .from('fighters')
+          .insert({
+            name,
+            wins: recordData.wins,
+            losses: recordData.losses,
+            draws: recordData.draws,
+            created_at: timestamp,
+            updated_at: timestamp
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('Error creating fighter:', insertError);
+          return null;
+        }
+
+        return newFighter;
+      }
+    } catch (error) {
+      console.error('Error in createOrUpdateFighter:', error);
+      return null;
+    }
+  },
+
   /**
    * Create a new MMA event with its bouts
    * @param eventData The event data from the scraping script
@@ -12,7 +105,6 @@ export const eventService = {
    */
   async createEvent(eventData: ScrapedEventData): Promise<Event | null> {
     try {
-      // Insert the event
       const { data: event, error: eventError } = await supabase
         .from('events')
         .insert({
@@ -30,30 +122,47 @@ export const eventService = {
         return null;
       }
 
-      // Insert the bouts
       if (eventData.bouts && eventData.bouts.length > 0) {
-        const boutsToInsert = eventData.bouts.map(bout => ({
-          event_id: event.id,
-          left_fighter: bout.left_fighter,
-          left_record: bout.left_record,
-          right_fighter: bout.right_fighter,
-          right_record: bout.right_record,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }));
+        // Process each bout
+        const boutsPromises = eventData.bouts.map(async (bout) => {
+          // Create or update fighters
+          console.log(eventData);
+          console.log(bout)
+          const leftFighter = await this.createOrUpdateFighter(bout.left_fighter, bout.left_record);
+          const rightFighter = await this.createOrUpdateFighter(bout.right_fighter, bout.right_record);
 
-        const { data: bouts, error: boutsError } = await supabase
-          .from('bouts')
-          .insert(boutsToInsert)
-          .select();
+          if (!leftFighter || !rightFighter) {
+            console.error('Failed to create or update fighters for bout');
+            return null;
+          }
 
-        if (boutsError) {
-          console.error('Error creating bouts:', boutsError);
-          // Even if bouts creation fails, we return the event
+          // Create bout with fighter IDs
+          return {
+            event_id: event.id,
+            fighter_left_id: leftFighter.id,
+            fighter_right_id: rightFighter.id,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+        });
+
+        // Wait for all fighter processing to complete
+        const boutsToInsert = (await Promise.all(boutsPromises)).filter(bout => bout !== null);
+
+        if (boutsToInsert.length > 0) {
+          const { data: bouts, error: boutsError } = await supabase
+            .from('bouts')
+            .insert(boutsToInsert)
+            .select();
+
+          if (boutsError) {
+            console.error('Error creating bouts:', boutsError);
+            // Even if bouts creation fails, we return the event
+          }
+
+          // Add bouts to the event object
+          event.bouts = bouts || [];
         }
-
-        // Add bouts to the event object
-        event.bouts = bouts || [];
       }
 
       return event;
@@ -87,9 +196,9 @@ export const eventService = {
   },
 
   /**
-   * Get an MMA event by ID with its bouts
+   * Get an MMA event by ID with its bouts and fighter information
    * @param id The event ID
-   * @returns The event with its bouts
+   * @returns The event with its bouts and fighter information
    */
   async getEventById(id: string): Promise<Event | null> {
     try {
@@ -105,10 +214,14 @@ export const eventService = {
         return null;
       }
 
-      // Get the bouts for this event
+      // Get the bouts for this event with fighter information
       const { data: bouts, error: boutsError } = await supabase
         .from('bouts')
-        .select('*')
+        .select(`
+          *,
+          fighter_left:fighters!fighter_left_id(*),
+          fighter_right:fighters!fighter_right_id(*)
+        `)
         .eq('event_id', id)
         .order('id');
 
@@ -117,8 +230,31 @@ export const eventService = {
         // Even if getting bouts fails, we return the event
       }
 
-      // Add bouts to the event object
-      event.bouts = bouts || [];
+      // Process bouts to include fighter information in a more accessible format
+      if (bouts) {
+        const processedBouts = bouts.map(bout => {
+          const leftFighter = bout.fighter_left;
+          const rightFighter = bout.fighter_right;
+
+          return {
+            id: bout.id,
+            event_id: bout.event_id,
+            fighter_left_id: bout.fighter_left_id,
+            fighter_right_id: bout.fighter_right_id,
+            left_fighter: leftFighter ? leftFighter.name : 'Unknown',
+            right_fighter: rightFighter ? rightFighter.name : 'Unknown',
+            left_record: leftFighter ? `${leftFighter.wins}-${leftFighter.losses}-${leftFighter.draws}` : '0-0-0',
+            right_record: rightFighter ? `${rightFighter.wins}-${rightFighter.losses}-${rightFighter.draws}` : '0-0-0',
+            created_at: bout.created_at,
+            updated_at: bout.updated_at
+          };
+        });
+
+        // Add processed bouts to the event object
+        event.bouts = processedBouts;
+      } else {
+        event.bouts = [];
+      }
 
       return event;
     } catch (error) {
@@ -165,6 +301,7 @@ export const eventService = {
   async deleteEvent(id: string): Promise<boolean> {
     try {
       // Delete the bouts first (due to foreign key constraint)
+      // Note: We don't delete fighters as they may be referenced by other bouts
       const { error: boutsError } = await supabase
         .from('bouts')
         .delete()
@@ -190,6 +327,79 @@ export const eventService = {
     } catch (error) {
       console.error('Error in deleteEvent:', error);
       return false;
+    }
+  },
+
+  /**
+   * Get a fighter by ID
+   * @param id The fighter ID
+   * @returns The fighter record
+   */
+  async getFighterById(id: string): Promise<FighterRecord | null> {
+    try {
+      const { data: fighter, error } = await supabase
+        .from('fighters')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        console.error('Error getting fighter:', error);
+        return null;
+      }
+
+      return fighter;
+    } catch (error) {
+      console.error('Error in getFighterById:', error);
+      return null;
+    }
+  },
+
+  /**
+   * Get all fighters
+   * @returns Array of fighter records
+   */
+  async getAllFighters(): Promise<FighterRecord[]> {
+    try {
+      const { data: fighters, error } = await supabase
+        .from('fighters')
+        .select('*')
+        .order('name');
+
+      if (error) {
+        console.error('Error getting fighters:', error);
+        return [];
+      }
+
+      return fighters || [];
+    } catch (error) {
+      console.error('Error in getAllFighters:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Search fighters by name
+   * @param searchTerm The search term to match against fighter names
+   * @returns Array of fighter records matching the search term
+   */
+  async searchFightersByName(searchTerm: string): Promise<FighterRecord[]> {
+    try {
+      const { data: fighters, error } = await supabase
+        .from('fighters')
+        .select('*')
+        .ilike('name', `%${searchTerm}%`)
+        .order('name');
+
+      if (error) {
+        console.error('Error searching fighters:', error);
+        return [];
+      }
+
+      return fighters || [];
+    } catch (error) {
+      console.error('Error in searchFightersByName:', error);
+      return [];
     }
   }
 };

@@ -181,6 +181,34 @@ app.delete("/api/events/:id", async (req: Request, res: Response) => {
   }
 });
 
+// Search fighters by name
+app.get("/api/fighters/search", async (req: Request, res: Response) => {
+  try {
+    const { name } = req.query;
+
+    if (!name || typeof name !== 'string') {
+      return res.status(400).json({ error: "Search term (name) is required" });
+    }
+
+    const fighters = await eventService.searchFightersByName(name);
+    return res.status(200).json(fighters);
+  } catch (error) {
+    console.error("Search fighters error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Get all fighters
+app.get("/api/fighters", async (req: Request, res: Response) => {
+  try {
+    const fighters = await eventService.getAllFighters();
+    return res.status(200).json(fighters);
+  } catch (error) {
+    console.error("Get fighters error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // Function to start the server with port fallback
 const startServer = (initialPort: string | number) => {
   const server = app.listen(initialPort, () => {

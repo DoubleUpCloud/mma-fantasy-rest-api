@@ -1,19 +1,32 @@
 // MMA Event interfaces
 
-// Interface for a fighter in a bout
+// Interface for a fighter in a bout (used in scraped data)
 export interface Fighter {
   name: string;
   record: string;
+}
+
+// Interface for a fighter record in the database
+export interface FighterRecord {
+  id?: string;
+  name: string;
+  wins: number;
+  losses: number;
+  draws: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 // Interface for a bout/fight
 export interface Bout {
   id?: string;
   event_id: string;
-  left_fighter: string;
-  left_record: string;
-  right_fighter: string;
-  right_record: string;
+  fighter_left_id: string;
+  fighter_right_id: string;
+  left_fighter?: string;
+  right_fighter?: string;
+  left_record?: string;
+  right_record?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -29,7 +42,6 @@ export interface Event {
   updated_at?: string;
 }
 
-// Interface for the data received from the web scraping script
 export interface ScrapedEventData {
   name: string;
   date: string;
