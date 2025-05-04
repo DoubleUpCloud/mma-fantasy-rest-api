@@ -1,2 +1,6 @@
 .env
 node_modules/
+.idea/
+.env.example
+dist/
+package-lock.json
