@@ -6,6 +6,26 @@ export interface Fighter {
   record: string;
 }
 
+// Betting interfaces
+
+// Interface for bet types
+export interface BetType {
+  id?: number;
+  name: string;
+  description?: string;
+  created_at?: string;
+}
+
+// Interface for user bets
+export interface UserBet {
+  user_id: string;
+  bout_id: number;
+  bet_type_id: number;
+  predicted_value: string;
+  created_at?: string;
+  result?: string;
+}
+
 // Interface for a fighter record in the database
 export interface FighterRecord {
   id?: string;

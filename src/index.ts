@@ -4,11 +4,8 @@ import cors from "cors";
 import { supabase } from "./lib/supabase";
 import { env, validateEnv } from "./config/env";
 import { eventService } from "./services/eventService";
-import { ScrapedEventData } from "./models";
-
-// Note: The punycode deprecation warning [DEP0040] is coming from a dependency
-// and can be ignored for now. It's a Node.js internal module that's being deprecated.
-// See: https://nodejs.org/api/deprecations.html#DEP0040
+import { betService } from "./services/betService";
+import { ScrapedEventData, BetType, UserBet } from "./models";
 
 // Validate required environment variables
 validateEnv();
@@ -205,6 +202,144 @@ app.get("/api/fighters", async (req: Request, res: Response) => {
     return res.status(200).json(fighters);
   } catch (error) {
     console.error("Get fighters error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Betting API endpoints
+
+// Create a new bet type
+app.post("/api/bet-types", async (req: Request, res: Response) => {
+  try {
+    const betTypeData: Omit<BetType, 'id' | 'created_at'> = req.body;
+
+    // Validate required fields
+    if (!betTypeData.name) {
+      return res.status(400).json({ error: "Bet type name is required" });
+    }
+
+    const betType = await betService.createBetType(betTypeData);
+
+    if (!betType) {
+      return res.status(500).json({ error: "Failed to create bet type" });
+    }
+
+    return res.status(201).json(betType);
+  } catch (error) {
+    console.error("Create bet type error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Get all bet types
+app.get("/api/bet-types", async (req: Request, res: Response) => {
+  try {
+    const betTypes = await betService.getAllBetTypes();
+    return res.status(200).json(betTypes);
+  } catch (error) {
+    console.error("Get bet types error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Get bet type by ID
+app.get("/api/bet-types/:id", async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+
+    if (isNaN(id)) {
+      return res.status(400).json({ error: "Invalid bet type ID" });
+    }
+
+    const betType = await betService.getBetTypeById(id);
+
+    if (!betType) {
+      return res.status(404).json({ error: "Bet type not found" });
+    }
+
+    return res.status(200).json(betType);
+  } catch (error) {
+    console.error("Get bet type error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Create a user bet
+app.post("/api/user-bets", async (req: Request, res: Response) => {
+  try {
+    const userBetData: Omit<UserBet, 'created_at' | 'result'> = req.body;
+
+    // Validate required fields
+    if (!userBetData.user_id || !userBetData.bout_id || !userBetData.bet_type_id || !userBetData.predicted_value) {
+      return res.status(400).json({ error: "Missing required bet data" });
+    }
+
+    const userBet = await betService.createUserBet(userBetData);
+
+    if (!userBet) {
+      return res.status(500).json({ error: "Failed to create user bet" });
+    }
+
+    return res.status(201).json(userBet);
+  } catch (error) {
+    console.error("Create user bet error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Get all bets for a user
+app.get("/api/user-bets/:userId", async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+
+    const userBets = await betService.getUserBets(userId);
+    return res.status(200).json(userBets);
+  } catch (error) {
+    console.error("Get user bets error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Get all bets for a bout
+app.get("/api/bout-bets/:boutId", async (req: Request, res: Response) => {
+  try {
+    const boutId = parseInt(req.params.boutId);
+
+    if (isNaN(boutId)) {
+      return res.status(400).json({ error: "Invalid bout ID" });
+    }
+
+    const boutBets = await betService.getBoutBets(boutId);
+    return res.status(200).json(boutBets);
+  } catch (error) {
+    console.error("Get bout bets error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Update bet result
+app.put("/api/user-bets/result", async (req: Request, res: Response) => {
+  try {
+    const userBetData: Pick<UserBet, 'user_id' | 'bout_id' | 'bet_type_id' | 'result'> = req.body;
+
+    // Validate required fields
+    if (!userBetData.user_id || !userBetData.bout_id || !userBetData.bet_type_id || userBetData.result === undefined) {
+      return res.status(400).json({ error: "Missing required bet data" });
+    }
+
+    const userBet = await betService.updateBetResult(userBetData);
+
+    if (!userBet) {
+      return res.status(404).json({ error: "User bet not found or update failed" });
+    }
+
+    return res.status(200).json(userBet);
+  } catch (error) {
+    console.error("Update bet result error:", error);
     return res.status(500).json({ error: "Internal server error" });
   }
 });
