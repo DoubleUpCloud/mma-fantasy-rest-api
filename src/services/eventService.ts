@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { Event, Bout, ScrapedEventData, FighterRecord } from '../models';
+import { eventResultsService } from './eventResultsService';
 
 /**
  * Parse a fighter record string (e.g., "10-2-1") into wins, losses, and draws
@@ -124,7 +125,12 @@ export const eventService = {
 
       if (eventData.bouts && eventData.bouts.length > 0) {
         // Process each bout
-        const boutsPromises = eventData.bouts.map(async (bout) => {
+        const boutsPromises = eventData.bouts.map(async (bout: {
+          left_fighter: string;
+          left_record: string;
+          right_fighter: string;
+          right_record: string;
+        }) => {
           // Create or update fighters
           console.log(eventData);
           console.log(bout)
@@ -232,7 +238,7 @@ export const eventService = {
 
       // Process bouts to include fighter information in a more accessible format
       if (bouts) {
-        const processedBouts = bouts.map(bout => {
+        const processedBouts = bouts.map((bout: any) => {
           const leftFighter = bout.fighter_left;
           const rightFighter = bout.fighter_right;
 
@@ -254,6 +260,45 @@ export const eventService = {
         event.bouts = processedBouts;
       } else {
         event.bouts = [];
+      }
+
+      // Check if the event date is earlier than today
+      const eventDate = new Date(event.date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Set to beginning of day for accurate comparison
+
+      if (eventDate < today) {
+        // Event is in the past, fetch fight results
+        const boutResults = await eventResultsService.getBoutResultsByEventId(id);
+
+        if (boutResults && boutResults.length > 0) {
+          // Create a map of bout_id to result for easy lookup
+          const boutResultsMap = new Map();
+          boutResults.forEach((result: any) => {
+            boutResultsMap.set(result.bout_id, result);
+          });
+
+          // Add results to each bout
+          if (event.bouts) {
+            event.bouts = event.bouts.map((bout: Bout) => {
+              const result = boutResultsMap.get(bout.id);
+              if (result) {
+                return {
+                  ...bout,
+                  result: {
+                    winner_id: result.winner_id,
+                    winner_name: result.winner?.name || 'Unknown',
+                    bet_type: result.bet_type?.name || 'Unknown',
+                    round: result.round,
+                    time: result.time,
+                    details: result.details
+                  }
+                };
+              }
+              return bout;
+            });
+          }
+        }
       }
 
       return event;

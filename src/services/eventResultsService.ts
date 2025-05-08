@@ -2,6 +2,26 @@ import { supabase } from '../lib/supabase';
 import { EventResults, BoutResult } from '../models';
 import { eventService } from './eventService';
 
+// Interface for database bout result
+interface DBBoutResult {
+  bout_id: string;
+  winner_id: string;
+  bet_type_id: number;
+  round: number;
+  time: string;
+  details: string;
+  created_at?: string;
+  updated_at?: string;
+  winner?: {
+    id: string;
+    name: string;
+  };
+  bet_type?: {
+    id: number;
+    name: string;
+  };
+}
+
 /**
  * Service for handling event results operations
  */
@@ -181,7 +201,7 @@ export const eventResultsService = {
     // Check for KO/TKO
     if (resultString.includes('KO/TKO')) {
       result.betType = 'KO/TKO';
-      
+
       // Extract round and time
       const match = resultString.match(/(\d+):(\d+)\s*R(\d+)/);
       if (match) {
@@ -200,7 +220,54 @@ export const eventResultsService = {
       }
     }
     // Add more result types as needed
-    
+
     return result;
+  },
+
+  /**
+   * Get bout results for an event
+   * @param eventId The event ID
+   * @returns Array of bout results with fighter and bet type information
+   */
+  async getBoutResultsByEventId(eventId: string): Promise<DBBoutResult[]> {
+    try {
+      // Get all bouts for the event
+      const { data: bouts, error: boutsError } = await supabase
+        .from('bouts')
+        .select('id')
+        .eq('event_id', eventId);
+
+      if (boutsError) {
+        console.error('Error getting bouts:', boutsError);
+        return [];
+      }
+
+      if (!bouts || bouts.length === 0) {
+        return [];
+      }
+
+      // Get bout IDs
+      const boutIds = bouts.map(bout => bout.id);
+
+      // Get bout results with winner and bet type information
+      const { data: boutResults, error: resultsError } = await supabase
+        .from('bout_results')
+        .select(`
+          *,
+          winner:fighters!winner_id(*),
+          bet_type:bet_types!bet_type_id(*)
+        `)
+        .in('bout_id', boutIds);
+
+      if (resultsError) {
+        console.error('Error getting bout results:', resultsError);
+        return [];
+      }
+
+      return boutResults || [];
+    } catch (error) {
+      console.error('Error in getBoutResultsByEventId:', error);
+      return [];
+    }
   }
 };
