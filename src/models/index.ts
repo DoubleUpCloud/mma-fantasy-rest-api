@@ -6,6 +6,21 @@ export interface Fighter {
   record: string;
 }
 
+// Interface for bout result
+export interface BoutResult {
+  winner: string;
+  loser: string;
+  result: string;
+}
+
+// Interface for event results
+export interface EventResults {
+  name: string;
+  date: string;
+  location: string;
+  bout_results: BoutResult[];
+}
+
 // Betting interfaces
 
 // Interface for bet types

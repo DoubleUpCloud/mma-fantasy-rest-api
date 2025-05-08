@@ -5,7 +5,8 @@ import { supabase } from "./lib/supabase";
 import { env, validateEnv } from "./config/env";
 import { eventService } from "./services/eventService";
 import { betService } from "./services/betService";
-import { ScrapedEventData, BetType, UserBet } from "./models";
+import { eventResultsService } from "./services/eventResultsService";
+import { ScrapedEventData, BetType, UserBet, EventResults } from "./models";
 
 // Validate required environment variables
 validateEnv();
@@ -340,6 +341,36 @@ app.put("/api/user-bets/result", async (req: Request, res: Response) => {
     return res.status(200).json(userBet);
   } catch (error) {
     console.error("Update bet result error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Add event results
+app.post("/api/event-results", async (req: Request, res: Response) => {
+  try {
+    const eventResultsData: EventResults = req.body;
+
+    // Validate required fields
+    if (!eventResultsData.name || !eventResultsData.date || !eventResultsData.location || !eventResultsData.bout_results || !Array.isArray(eventResultsData.bout_results)) {
+      return res.status(400).json({ error: "Missing required event results data" });
+    }
+
+    // Validate bout results
+    for (const boutResult of eventResultsData.bout_results) {
+      if (!boutResult.winner || !boutResult.loser || !boutResult.result) {
+        return res.status(400).json({ error: "Missing required bout result data" });
+      }
+    }
+
+    const success = await eventResultsService.addEventResults(eventResultsData);
+
+    if (!success) {
+      return res.status(500).json({ error: "Failed to add event results" });
+    }
+
+    return res.status(201).json({ message: "Event results added successfully" });
+  } catch (error) {
+    console.error("Add event results error:", error);
     return res.status(500).json({ error: "Internal server error" });
   }
 });
