@@ -280,11 +280,25 @@ export const eventService = {
 
           // Add results to each bout
           if (event.bouts) {
-            event.bouts = event.bouts.map((bout: Bout) => {
+            // Create an array of promises to fetch the latest fighter records
+            const boutsWithUpdatedRecordsPromises = event.bouts.map(async (bout: Bout) => {
               const result = boutResultsMap.get(bout.id);
+
+              // Fetch the latest fighter records
+              const leftFighter = await this.getFighterById(bout.fighter_left_id);
+              const rightFighter = await this.getFighterById(bout.fighter_right_id);
+
+              // Update the fighter records in the bout
+              const updatedBout = {
+                ...bout,
+                left_record: leftFighter ? `${leftFighter.wins}-${leftFighter.losses}-${leftFighter.draws}` : '0-0-0',
+                right_record: rightFighter ? `${rightFighter.wins}-${rightFighter.losses}-${rightFighter.draws}` : '0-0-0'
+              };
+
+              // Add result information if available
               if (result) {
                 return {
-                  ...bout,
+                  ...updatedBout,
                   result: {
                     winner_id: result.winner_id,
                     winner_name: result.winner?.name || 'Unknown',
@@ -295,8 +309,12 @@ export const eventService = {
                   }
                 };
               }
-              return bout;
+
+              return updatedBout;
             });
+
+            // Wait for all promises to resolve
+            event.bouts = await Promise.all(boutsWithUpdatedRecordsPromises);
           }
         }
       }

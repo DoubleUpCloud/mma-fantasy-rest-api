@@ -7,8 +7,8 @@ import { eventService } from "./services/eventService";
 import { betService } from "./services/betService";
 import { eventResultsService } from "./services/eventResultsService";
 import { ScrapedEventData, BetType, UserBet, EventResults } from "./models";
+import {authenticateJWT} from "./services/authenticateJWT";
 
-// Validate required environment variables
 validateEnv();
 
 const app: Express = express();
@@ -266,11 +266,12 @@ app.get("/api/bet-types/:id", async (req: Request, res: Response) => {
 });
 
 // Create a user bet
-app.post("/api/user-bets", async (req: Request, res: Response) => {
+app.post("/api/user-bets", authenticateJWT, async (req: Request, res: Response) => {
   try {
-    const userBetData: Omit<UserBet, 'created_at' | 'result'> = req.body;
+    const userId = req.userId;
 
-    // Validate required fields
+    const userBetData: Omit<UserBet, 'created_at' | 'result'> = {...req.body, user_id: userId};
+
     if (!userBetData.user_id || !userBetData.bout_id || !userBetData.bet_type_id || !userBetData.predicted_value) {
       return res.status(400).json({ error: "Missing required bet data" });
     }
