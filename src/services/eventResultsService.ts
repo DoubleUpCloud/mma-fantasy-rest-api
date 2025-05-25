@@ -187,11 +187,6 @@ export const eventResultsService = {
     }
   },
 
-  /**
-   * Parse the result string to extract bet type, round, and time
-   * @param resultString The result string (e.g., "KO/TKO, 0:51 R2" or "Split Dec")
-   * @returns Object with bet type, round, and time
-   */
   parseResultString(resultString: string): { betType: string; round: number; time: string } {
     // Default values
     const result = { betType: 'Decision', round: 0, time: '' };

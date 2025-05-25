@@ -233,13 +233,17 @@ export const betService = {
       const { data, error } = await supabase
           .from('user_bets')
           .select(`
-          *,
-          bouts!inner (
-            event_id
-          )
-        `)
+        *,
+        bouts!inner (
+          event_id
+        ),
+        predicted_fighter:fighters (
+          id,
+          name
+        )
+      `)
           .eq('user_id', userId)
-          .eq('bouts.event_id', eventId); // Filter by event_id from the joined 'bouts' table
+          .eq('bouts.event_id', eventId)
 
       if (error) {
         console.error(`Error getting user bets for event ID ${eventId}:`, error);
@@ -250,7 +254,7 @@ export const betService = {
 
     } catch (error) {
       console.error('Error in getUserBetsForEventBouts:', error);
-      return []
+      return [];
     }
   },
 
