@@ -291,9 +291,12 @@ app.post("/api/user-bets", authenticateJWT, async (req: Request, res: Response) 
 });
 
 // Get all bets for a user
-app.get("/api/user-bets/:userId", async (req: Request, res: Response) => {
+app.get("/api/user-bets", authenticateJWT, async (req: Request, res: Response) => {
   try {
-    const { userId } = req.params;
+
+
+
+    const  userId  = req.userId;
 
     if (!userId) {
       return res.status(400).json({ error: "User ID is required" });
