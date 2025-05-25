@@ -237,8 +237,7 @@ export const betService = {
         bouts!inner (
           event_id
         ),
-        predicted_fighter:fighters (
-          id,
+        predicted_winner:fighters (
           name
         )
       `)
@@ -250,7 +249,12 @@ export const betService = {
         return [];
       }
 
-      return data;
+      const mappedData = data.map((bet)=>({
+        ...bet,
+        predicted_winner: bet.predicted_winner.name ?? null
+      }))
+
+      return mappedData;
 
     } catch (error) {
       console.error('Error in getUserBetsForEventBouts:', error);
