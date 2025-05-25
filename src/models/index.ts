@@ -36,9 +36,8 @@ export interface UserBet {
   user_id: string;
   bout_id: number;
   bet_type_id: number;
-  predicted_value: string;
+  predicted_winner: number;
   created_at?: string;
-  result?: string;
 }
 
 // Interface for a fighter record in the database

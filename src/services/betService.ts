@@ -87,15 +87,13 @@ export const betService = {
    * @param userBet The user bet data
    * @returns The created user bet
    */
-  async createUserBet(userBet: Omit<UserBet, 'created_at' | 'result'>): Promise<UserBet | null> {
+  async createUserBet(userBet: Omit<UserBet, 'created_at'>): Promise<UserBet | null> {
     try {
-      // Check if the user already has a bet for this bout and bet type
       const { data: existingBet, error: checkError } = await supabase
         .from('user_bets')
         .select('*')
         .eq('user_id', userBet.user_id)
         .eq('bout_id', userBet.bout_id)
-        .eq('bet_type_id', userBet.bet_type_id)
         .maybeSingle();
 
       if (checkError) {
@@ -103,16 +101,15 @@ export const betService = {
         return null;
       }
 
-      // If the bet already exists, update it
       if (existingBet) {
         const { data: updatedBet, error: updateError } = await supabase
           .from('user_bets')
           .update({
-            predicted_value: userBet.predicted_value
+            predicted_winner: userBet.predicted_winner,
+            bet_type_id: userBet.bet_type_id,
           })
           .eq('user_id', userBet.user_id)
           .eq('bout_id', userBet.bout_id)
-          .eq('bet_type_id', userBet.bet_type_id)
           .select()
           .single();
 
@@ -131,7 +128,7 @@ export const betService = {
           user_id: userBet.user_id,
           bout_id: userBet.bout_id,
           bet_type_id: userBet.bet_type_id,
-          predicted_value: userBet.predicted_value,
+          predicted_winner: userBet.predicted_winner,
           created_at: new Date().toISOString()
         })
         .select()
@@ -204,12 +201,12 @@ export const betService = {
    * @param userBet The user bet with updated result
    * @returns The updated user bet
    */
-  async updateBetResult(userBet: Pick<UserBet, 'user_id' | 'bout_id' | 'bet_type_id' | 'result'>): Promise<UserBet | null> {
+  async updateBetResult(userBet: Pick<UserBet, 'user_id' | 'bout_id' | 'bet_type_id' | 'predicted_winner'>): Promise<UserBet | null> {
     try {
       const { data, error } = await supabase
         .from('user_bets')
         .update({
-          result: userBet.result
+          result: userBet.predicted_winner,
         })
         .eq('user_id', userBet.user_id)
         .eq('bout_id', userBet.bout_id)
@@ -227,5 +224,17 @@ export const betService = {
       console.error('Error in updateBetResult:', error);
       return null;
     }
-  }
+  },
+
+  // services/pointsService.ts
+
+  async calculateUserPoints():Promise<void>{
+    const { error } = await supabase.rpc('calculate_user_points');
+
+    if (error) {
+      throw new Error(`Failed to calculate points: ${error.message}`);
+    }
+  },
+
+
 };

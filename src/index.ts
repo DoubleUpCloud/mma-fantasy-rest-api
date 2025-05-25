@@ -9,6 +9,7 @@ import { eventResultsService } from "./services/eventResultsService";
 import { ScrapedEventData, BetType, UserBet, EventResults } from "./models";
 import {authenticateJWT} from "./services/authenticateJWT";
 
+
 validateEnv();
 
 const app: Express = express();
@@ -272,7 +273,7 @@ app.post("/api/user-bets", authenticateJWT, async (req: Request, res: Response) 
 
     const userBetData: Omit<UserBet, 'created_at' | 'result'> = {...req.body, user_id: userId};
 
-    if (!userBetData.user_id || !userBetData.bout_id || !userBetData.bet_type_id || !userBetData.predicted_value) {
+    if (!userBetData.user_id || !userBetData.bout_id || !userBetData.bet_type_id || !userBetData.predicted_winner) {
       return res.status(400).json({ error: "Missing required bet data" });
     }
 
@@ -326,10 +327,10 @@ app.get("/api/bout-bets/:boutId", async (req: Request, res: Response) => {
 // Update bet result
 app.put("/api/user-bets/result", async (req: Request, res: Response) => {
   try {
-    const userBetData: Pick<UserBet, 'user_id' | 'bout_id' | 'bet_type_id' | 'result'> = req.body;
+    const userBetData: Pick<UserBet, 'user_id' | 'bout_id' | 'bet_type_id' | 'predicted_winner'> = req.body;
 
     // Validate required fields
-    if (!userBetData.user_id || !userBetData.bout_id || !userBetData.bet_type_id || userBetData.result === undefined) {
+    if (!userBetData.user_id || !userBetData.bout_id || !userBetData.bet_type_id || userBetData.predicted_winner === undefined) {
       return res.status(400).json({ error: "Missing required bet data" });
     }
 
@@ -375,6 +376,17 @@ app.post("/api/event-results", async (req: Request, res: Response) => {
     return res.status(500).json({ error: "Internal server error" });
   }
 });
+
+app.post('/api/calculate-points', async (req, res) => {
+  try {
+    await betService.calculateUserPoints();
+    res.status(200).json({ status: 'ok', message: 'Points calculated successfully' });
+  } catch (error) {
+    console.error('Error calculating points:', error);
+    res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+});
+
 
 // Function to start the server with port fallback
 const startServer = (initialPort: string | number) => {
