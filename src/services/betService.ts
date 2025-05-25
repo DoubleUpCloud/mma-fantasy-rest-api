@@ -228,6 +228,32 @@ export const betService = {
 
   // services/pointsService.ts
 
+  async getUserBetsForEventBouts(userId: string, eventId: number): Promise<UserBet[] | null> {
+    try {
+      const { data, error } = await supabase
+          .from('user_bets')
+          .select(`
+          *,
+          bouts!inner (
+            event_id
+          )
+        `)
+          .eq('user_id', userId)
+          .eq('bouts.event_id', eventId); // Filter by event_id from the joined 'bouts' table
+
+      if (error) {
+        console.error(`Error getting user bets for event ID ${eventId}:`, error);
+        return [];
+      }
+
+      return data;
+
+    } catch (error) {
+      console.error('Error in getUserBetsForEventBouts:', error);
+      return []
+    }
+  },
+
   async calculateUserPoints():Promise<void>{
     const { error } = await supabase.rpc('calculate_user_points');
 

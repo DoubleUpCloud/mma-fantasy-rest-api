@@ -294,8 +294,6 @@ app.post("/api/user-bets", authenticateJWT, async (req: Request, res: Response) 
 app.get("/api/user-bets", authenticateJWT, async (req: Request, res: Response) => {
   try {
 
-
-
     const  userId  = req.userId;
 
     if (!userId) {
@@ -303,6 +301,29 @@ app.get("/api/user-bets", authenticateJWT, async (req: Request, res: Response) =
     }
 
     const userBets = await betService.getUserBets(userId);
+    return res.status(200).json(userBets);
+  } catch (error) {
+    console.error("Get user bets error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+app.get("/api/event/:eventId/user-bets", authenticateJWT, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    // Pobierz eventId z parametrów URL
+    const eventId = parseInt(req.params.eventId);
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+
+    // Sprawdzenie, czy eventId jest poprawną liczbą
+    if (isNaN(eventId)) {
+      return res.status(400).json({ error: "Invalid event ID provided" });
+    }
+
+    const userBets = await betService.getUserBetsForEventBouts(userId, eventId);
     return res.status(200).json(userBets);
   } catch (error) {
     console.error("Get user bets error:", error);
