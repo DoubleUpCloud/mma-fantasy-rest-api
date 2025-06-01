@@ -73,8 +73,8 @@ export const eventResultsService = {
         const loserName = boutResult.loser.trim().replace(/\nL$/, ''); // Remove the 'L' suffix if present
 
         // Get or create fighters
-        const winner = await eventService.createOrUpdateFighter(winnerName, '');
-        const loser = await eventService.createOrUpdateFighter(loserName, '');
+        const winner = await eventService.createFighter(winnerName, '');
+        const loser = await eventService.createFighter(loserName, '');
 
         if (!winner || !loser) {
           console.error('Failed to create or update fighters');

@@ -98,7 +98,34 @@ export const eventService = {
       return null;
     }
   },
+  async createFighter(name: string, record: string): Promise<FighterRecord | null> {
+    try {
+      const recordData = parseRecord(record);
+      const timestamp = new Date().toISOString();
+      const { data: newFighter, error: insertError } = await supabase
+          .from('fighters')
+          .insert({
+            name,
+            wins: recordData.wins,
+            losses: recordData.losses,
+            draws: recordData.draws,
+            created_at: timestamp,
+            updated_at: timestamp
+          })
+          .select()
+          .single();
 
+      if (insertError) {
+        console.error('Error creating fighter:', insertError);
+        return null;
+      }
+
+      return newFighter;
+    } catch (error) {
+      console.error('Error in createOrUpdateFighter:', error);
+      return null;
+    }
+  },
   /**
    * Create a new MMA event with its bouts
    * @param eventData The event data from the scraping script
