@@ -208,6 +208,19 @@ app.get("/api/fighters", async (req: Request, res: Response) => {
   }
 });
 
+// Get all users for scoreboard
+app.get("/api/leaders", async (req: Request, res: Response) => {
+  try {
+    const users = await eventService.getAllUsers();
+
+
+    return res.status(200).json(users);
+  } catch (error) {
+    console.error("Get users error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // Betting API endpoints
 
 // Create a new bet type

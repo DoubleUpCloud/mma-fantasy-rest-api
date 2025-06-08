@@ -6,6 +6,10 @@ export interface Fighter {
   record: string;
 }
 
+export interface UserRecord {
+  
+}
+
 // Interface for bout result
 export interface BoutResult {
   winner: string;

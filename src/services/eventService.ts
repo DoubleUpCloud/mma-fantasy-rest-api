@@ -468,6 +468,39 @@ export const eventService = {
     }
   },
 
+  async getAllUsers(): Promise<any[]> {
+    try {
+      const { data: users, error } = await supabase
+        .from('exposed_users')
+        .select('*, user_bets(*)')
+        .order('id');
+  
+      if (error) {
+        console.error('Error getting users:', error);
+        return [];
+      }
+  
+      return (users || []).map(user => {
+        const name = user.email.split('@')[0];
+        const bets = user.user_bets || [];
+  
+        const points = bets.reduce((sum: number, bet: any) => sum + (bet.points || 0), 0);
+        const total_bets = bets.length;
+  
+        return {
+          id: user.id,
+          created_at: user.created_at,
+          name, 
+          points,
+          total_bets
+        };
+      });
+    } catch (error) {
+      console.error('Error in getAllUsers:', error);
+      return [];
+    }
+  },
+
   /**
    * Search fighters by name
    * @param searchTerm The search term to match against fighter names
