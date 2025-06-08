@@ -1,5 +1,5 @@
-import { supabase } from '../lib/supabase';
-import { BetType, UserBet } from '../models';
+import {supabase} from '../lib/supabase';
+import {BetType, UserBet} from '../models';
 
 /**
  * Service for handling betting operations
@@ -154,22 +154,39 @@ export const betService = {
   async getUserBets(userId: string): Promise<UserBet[]> {
     try {
       const { data, error } = await supabase
-        .from('user_bets')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
+          .from('user_bets')
+          .select(`
+        *,
+        bouts!inner (
+          event_id
+        ),
+        bet_types!inner(
+        name
+        ),
+        predicted_winner:fighters (
+          name
+        )
+      `)
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error getting user bets:', error);
         return [];
       }
 
-      return data || [];
+      return data.map((bet) => ({
+        ...bet,
+        predicted_winner: bet.predicted_winner?.name ?? null,
+        bout: bet.bouts ?? null,
+      }));
+
     } catch (error) {
       console.error('Error in getUserBets:', error);
       return [];
     }
   },
+
 
   /**
    * Get all bets for a bout
