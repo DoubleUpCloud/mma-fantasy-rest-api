@@ -158,7 +158,10 @@ export const betService = {
           .select(`
         *,
         bouts!inner (
-          event_id
+          event_id,
+          events(
+          date
+          )
         ),
         bet_types!inner(
         name
