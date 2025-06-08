@@ -244,6 +244,23 @@ app.get("/api/bet-types", async (req: Request, res: Response) => {
   }
 });
 
+app.post("/api/logout", (req: Request, res: Response) => {
+  // Usuwanie cookies przez nadpisanie z przeszłą datą
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: false,
+    sameSite: 'lax',
+  });
+
+  res.clearCookie("is-logged", {
+    secure: false,
+    sameSite: 'lax',
+  });
+
+  return res.status(200).json({ message: "Logged out successfully" });
+});
+
+
 // Get bet type by ID
 app.get("/api/bet-types/:id", async (req: Request, res: Response) => {
   try {
